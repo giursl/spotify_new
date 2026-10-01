@@ -1,0 +1,52 @@
+name: Update Spotify Card
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Atualiza a cada 5 minutos
+  workflow_dispatch:
+
+jobs:
+  update-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Spotify script
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: |
+          python -c '
+          import os, requests
+          # Script simples que puxa do Spotify e atualiza o svg
+          cid = os.getenv("SPOTIFY_CLIENT_ID")
+          csec = os.getenv("SPOTIFY_CLIENT_SECRET")
+          rtoken = os.getenv("SPOTIFY_REFRESH_TOKEN")
+          
+          # Pede novo token de acesso
+          res = requests.post("https://accounts.spotify.com/api/token", data={
+              "grant_type": "refresh_token",
+              "refresh_token": rtoken,
+              "client_id": cid,
+              "client_secret": csec
+          }).json()
+          
+          token = res.get("access_token")
+          if token:
+              track_res = requests.get("https://api.spotify.com/v1/me/player/currently-playing", headers={"Authorization": f"Bearer {token}"})
+              if track_res.status_code == 200 and track_res.json().get("item"):
+                  item = track_res.json()["item"]
+                  name = item["name"]
+                  artist = item["artists"][0]["name"]
+                  print(f"A tocar: {name} - {artist}")
+          '
