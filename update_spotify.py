@@ -1,7 +1,6 @@
 import os
 import requests
 import base64
-import json
 
 cid = os.getenv("SPOTIFY_CLIENT_ID")
 csec = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -16,8 +15,6 @@ res = requests.post("https://accounts.spotify.com/api/token", data={
 }).json()
 
 token = res.get("access_token")
-print("Access Token obtido:", "Sim" if token else "Não")
-
 track_name = "Nada a tocar"
 artist_name = "Offline"
 cover_url = ""
@@ -27,35 +24,18 @@ is_playing = False
 
 if token:
     headers = {"Authorization": f"Bearer {token}"}
-    # Tentar buscar a música a tocar agora
     track_res = requests.get("https://api.spotify.com/v1/me/player/currently-playing", headers=headers)
-    print("Status code currently-playing:", track_res.status_code)
     
-    item = None
     if track_res.status_code == 200 and track_res.text:
         data = track_res.json()
-        print("Dados recebidos da API:", json.dumps(data, indent=2))
         if data and data.get("item"):
             is_playing = data.get("is_playing", False)
             item = data["item"]
-
-    # Se não houver nada a tocar agora, vamos buscar a última música ouçada recentemente
-    if not item:
-        print("A API não devolveu música ativa. A procurar recentemente ouvida...")
-        recent_res = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=1", headers=headers)
-        if recent_res.status_code == 200:
-            recent_data = recent_res.json()
-            if recent_data.get("items"):
-                item = recent_data["items"][0]["track"]
-                is_playing = False
-                print("Encontrada música recente:", item["name"])
-
-    if item:
-        track_name = item["name"]
-        artist_name = ", ".join([artist["name"] for artist in item["artists"]])
-        cover_url = item["album"]["images"][0]["url"] if item["album"]["images"] else ""
-        progress_ms = item.get("duration_ms", 0) if not is_playing else 10000 # fallback se vier dos recentes
-        duration_ms = item["duration_ms"]
+            track_name = item["name"]
+            artist_name = ", ".join([artist["name"] for artist in item["artists"]])
+            cover_url = item["album"]["images"][0]["url"] if item["album"]["images"] else ""
+            progress_ms = data.get("progress_ms", 0)
+            duration_ms = item["duration_ms"]
 
 img_base64 = ""
 if cover_url:
